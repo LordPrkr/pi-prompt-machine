@@ -27,9 +27,9 @@ Names may contain letters, numbers, `_`, and `-`; `state` and `transition` are r
 - `/prompt-machine <name>` starts or replaces a workflow and sends only its first instruction to the agent.
 - `/prompt-machine transition [name]` asserts completion and advances. A name may be omitted only for one outgoing edge.
 - `/prompt-machine state` displays machine, status, source, current instruction, and outgoing targets without triggering a turn or revealing future instructions.
-- Agents call `prompt_machine_transition` after completing the disclosed instruction.
+- Agents call `prompt_machine_transition` after completing the disclosed instruction. With one outgoing edge, no transition name is needed. With multiple edges, the agent chooses the transition that best matches the outcome of its work and passes that transition name.
 
-Transition calls assert completion; they do not independently verify it. Workflow starts contain an immutable parsed snapshot, while subsequent checkpoints are lightweight. Pi custom entries restore the correct state when resuming or navigating branches with `/tree`.
+Transition calls assert completion; they do not independently verify it. Use outcome-oriented transition names so the agent can select the appropriate branch. Workflow starts contain an immutable parsed snapshot, while subsequent checkpoints are lightweight. Pi custom entries restore the correct state when resuming or navigating branches with `/tree`.
 
 ## Authoring rules
 

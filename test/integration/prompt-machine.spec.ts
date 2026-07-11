@@ -42,6 +42,8 @@ layer(NodeServices.layer)('prompt machine integration', (it) => {
       for (const instruction of instructions) {
         const disclosure = formatDisclosure(record);
         expect(disclosure).toContain(instruction);
+        expect(disclosure).toContain('After finishing this instruction, call prompt_machine_transition.');
+        expect(disclosure).not.toContain('choose the transition');
         for (const future of instructions.filter((candidate) => candidate !== instruction)) {
           expect(disclosure).not.toContain(future);
         }

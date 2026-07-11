@@ -33,7 +33,12 @@ it.effect('starts, selects a named branch, and completes while disclosing only t
     const started = yield* startWorkflow(machine);
     expect(formatDisclosure(started)).toContain('Inspect the change');
     expect(formatDisclosure(started)).not.toContain('Approve it');
+    expect(formatDisclosure(started)).toContain(
+      'choose the transition that best matches the outcome of your work, then call prompt_machine_transition with that transition name',
+    );
     const approved = yield* transitionWorkflow(started, 'approve');
+    expect(formatDisclosure(approved)).toContain('After finishing this instruction, call prompt_machine_transition.');
+    expect(formatDisclosure(approved)).not.toContain('choose the transition');
     expect(formatState(approved)).toContain('Approve it');
     expect(formatState(approved)).not.toContain('Revise it');
     const completed = yield* transitionWorkflow(approved);
