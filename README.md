@@ -6,17 +6,14 @@ This keeps long workflows out of the prompt until each step becomes relevant.
 
 ## Install
 
-From a local checkout:
-
 ```sh
-bun install
-pi install "$(pwd)"
+pi install npm:pi-prompt-machine
 ```
 
 To try the extension without installing it:
 
 ```sh
-pi -e .
+pi -e npm:pi-prompt-machine
 ```
 
 ## Create a prompt machine
