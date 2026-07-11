@@ -102,7 +102,7 @@ This machine gathers context, handles optional domain modeling, prepares and rev
 stateDiagram-v2
   [*] --> build_context
 
-  state "Resolve the Code Brain project folder and next numbered plan directory. Launch asynchronous scout and context-builder subagents with distinct scopes; add a researcher only when external evidence materially affects the plan. Persist useful findings in notes.md and create a canvas when flow, ownership, state, or boundaries matter. Do not delegate artifact persistence or orchestration." as build_context
+  state "Resolve the Code Brain project folder and next numbered plan directory. Launch asynchronous scout and context-builder subagents with distinct scopes; add a researcher only when external evidence materially affects the plan. Persist useful findings in notes.md. Do not delegate artifact persistence or orchestration." as build_context
   build_context --> capture_domain: domain-modeling-needed
   build_context --> challenge_direction: context-ready-no-domain-changes
 
@@ -112,14 +112,14 @@ stateDiagram-v2
   state "Decide whether assumptions, architecture, scope, or trajectory need a second opinion. When they do, run a forked oracle as a read-only adviser and explicitly accept or reject its recommendations before planning; otherwise record that no meaningful directional decision requires an oracle." as challenge_direction
   challenge_direction --> draft_plan
 
-  state "Give the gathered context and approved direction to a planner that must not edit code. Persist and refine plan.md as a standalone fresh-worker handoff containing the goal, context, exact files, TDD-first steps, important end-state snippets, verification commands, risks, blocking user questions, and links to every sibling artifact and relevant ADR. Always create and link call-stack.diagram.md; create proposed.canvas and current.canvas only when useful. Do not leave conditional implementation forks in the plan." as draft_plan
+  state "Give the gathered context and approved direction to a planner that must not edit code. Read code-brain-planning/references/TEMPLATE.md and use its structure for plan.md, setting date to the creation date and approved to false while drafting or revising. Persist and refine the plan as a standalone fresh-worker handoff containing the goal, context, exact files, TDD-first steps, important end-state snippets, verification commands, risks, blocking user questions, and links to every sibling artifact and relevant ADR. Do not leave conditional implementation forks in the plan." as draft_plan
   draft_plan --> review_plan
 
   state "Adversarially review the plan against the request and evidence with a fresh read-only reviewer when risk is meaningful; otherwise self-review. Incorporate accepted feedback without revision-history residue and ensure the plan is complete, concrete, linked, TDD-first, and executable by a worker with no prior context." as review_plan
   review_plan --> approval_gate: plan-ready
   review_plan --> draft_plan: changes-needed
 
-  state "Present the standalone plan and wait for the user. Do not edit implementation files before explicit approval. If the user requests changes, update the plan so it remains self-contained and review it again." as approval_gate
+  state "Present the standalone plan and wait for the user. Keep approved false and leave implementation files unchanged while awaiting approval or revising. After explicit user approval, set approved to true before implementation. If the user requests changes, update the plan so it remains self-contained and review it again." as approval_gate
   approval_gate --> implement: user-approved
   approval_gate --> draft_plan: revision-requested
   approval_gate --> [*]: cancelled
@@ -138,7 +138,7 @@ stateDiagram-v2
   commit --> [*]
 ```
 
-Save it as `~/.pi/agent/prompt-machines/code-brain-planning.mmd`, then run:
+Save it as `~/.pi/agent/prompt-machines/code-brain-planning/MACHINE.mmd`, with the plan template at `code-brain-planning/references/TEMPLATE.md`, then run:
 
 ```text
 /prompt-machine code-brain-planning <your task>
