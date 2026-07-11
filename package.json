@@ -41,11 +41,12 @@
     "typebox": "*"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.16",
     "@effect/tsgo": "0.19.0",
     "@effect/vitest": "4.0.0-beta.93",
     "@types/bun": "latest",
     "@vitest/coverage-v8": "3.2.6",
+    "oxfmt": "0.58.0",
+    "oxlint": "1.73.0",
     "typescript": "^7.0.2",
     "vitest": "~3.2.6"
   },
@@ -58,9 +59,9 @@
     "test:integration": "vitest run --config vitest.config.integration.mts",
     "test:integration:watch": "vitest --config vitest.config.integration.mts",
     "test:coverage": "vitest run --config vitest.config.mts --coverage",
-    "format": "biome format --write .",
-    "lint": "biome lint .",
-    "lint:fix": "biome lint --write .",
+    "format": "oxfmt --disable-nested-config .",
+    "lint": "oxlint --disable-nested-config .",
+    "lint:fix": "oxlint --disable-nested-config --fix .",
     "typecheck": "tsc --noEmit"
   }
 }

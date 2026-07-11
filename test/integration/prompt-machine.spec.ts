@@ -19,10 +19,14 @@ layer(NodeServices.layer)('prompt machine integration', (it) => {
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
-      const agentDir = yield* fs.makeTempDirectoryScoped({ prefix: 'prompt-machine-planning-' });
+      const agentDir = yield* fs.makeTempDirectoryScoped({
+        prefix: 'prompt-machine-planning-',
+      });
       const machineDir = path.join(agentDir, 'prompt-machines');
       const resourceDir = path.join(machineDir, 'code-brain-planning');
-      yield* fs.makeDirectory(path.join(resourceDir, 'references'), { recursive: true });
+      yield* fs.makeDirectory(path.join(resourceDir, 'references'), {
+        recursive: true,
+      });
       const fixture = yield* fs.readFileString(path.resolve('test/fixtures/code-brain-planning.mmd'));
       const source = path.join(resourceDir, 'MACHINE.mmd');
       yield* fs.writeFileString(source, fixture);
@@ -44,7 +48,9 @@ layer(NodeServices.layer)('prompt machine integration', (it) => {
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
-      const agentDir = yield* fs.makeTempDirectoryScoped({ prefix: 'prompt-machine-' });
+      const agentDir = yield* fs.makeTempDirectoryScoped({
+        prefix: 'prompt-machine-',
+      });
       const machineDir = path.join(agentDir, 'prompt-machines');
       yield* fs.makeDirectory(machineDir);
       const fixture = yield* fs.readFileString(path.resolve('test/fixtures/fix-and-push.mmd'));
@@ -66,7 +72,10 @@ layer(NodeServices.layer)('prompt machine integration', (it) => {
       expect(initial).toContain(machine.snapshot.instructions[record.currentState]);
       expect(initial).not.toContain('Implement the smallest root-cause fix.');
       const entries: Array<unknown> = [
-        { customType: 'prompt-machine', data: yield* Schema.encodeUnknownEffect(WorkflowEntry)(startEntry(record)) },
+        {
+          customType: 'prompt-machine',
+          data: yield* Schema.encodeUnknownEffect(WorkflowEntry)(startEntry(record)),
+        },
       ];
       const instructions = Object.values(machine.snapshot.instructions);
       for (const instruction of instructions) {
