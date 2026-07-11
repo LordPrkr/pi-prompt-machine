@@ -9,7 +9,7 @@
   ],
   "pi": {
     "extensions": [
-      "./extensions/prompt-machine.ts"
+      "./extensions"
     ]
   },
   "dependencies": {
