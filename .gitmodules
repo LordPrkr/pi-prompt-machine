@@ -1,0 +1,12 @@
+[submodule ".local/share/effect-solutions/effect"]
+	path = .local/share/effect-solutions/effect
+	url = https://github.com/Effect-TS/effect.git
+[submodule ".repos/executor"]
+	path = .repos/executor
+	url = https://github.com/UsefulSoftwareCo/executor
+[submodule ".repos/opencode"]
+	path = .repos/opencode
+	url = https://github.com/anomalyco/opencode
+[submodule ".repos/effect"]
+	path = .repos/effect
+	url = https://github.com/Effect-TS/effect-smol.git

@@ -1,0 +1,12 @@
+stateDiagram-v2
+  [*] --> inspect
+  inspect: Inspect the repository and identify the root cause.
+  inspect --> test: ready
+  test: Add a focused failing regression test.
+  test --> fix
+  fix: Implement the smallest root-cause fix.
+  fix --> verify
+  verify: Run the required validation commands.
+  verify --> push
+  push: Summarize the change and prepare it for push.
+  push --> [*]
