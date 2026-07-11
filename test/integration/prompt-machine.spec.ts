@@ -6,6 +6,7 @@ import {
   checkpointEntry,
   foldWorkflowEntries,
   formatDisclosure,
+  formatInitialDisclosure,
   formatState,
   startEntry,
   startWorkflow,
@@ -35,6 +36,10 @@ layer(NodeServices.layer)('prompt machine integration', (it) => {
       }
 
       let record = yield* startWorkflow(machine);
+      const initial = formatInitialDisclosure(record, 'Wrap repository tests in describe blocks.');
+      expect(initial).toContain('User request:\nWrap repository tests in describe blocks.');
+      expect(initial).toContain(machine.snapshot.instructions[record.currentState]);
+      expect(initial).not.toContain('Implement the smallest root-cause fix.');
       const entries: Array<unknown> = [
         { customType: 'prompt-machine', data: yield* Schema.encodeUnknownEffect(WorkflowEntry)(startEntry(record)) },
       ];

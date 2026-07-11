@@ -24,7 +24,7 @@ Names may contain letters, numbers, `_`, and `-`; `state` and `transition` are r
 
 ## Commands and tool
 
-- `/prompt-machine <name>` starts or replaces a workflow and sends only its first instruction to the agent.
+- `/prompt-machine <name> [prompt]` starts or replaces a workflow and sends its first instruction to the agent. Optional text after the name is included verbatim as the user request in that initial message, for example: `/prompt-machine code-brain-planning Wrap the repository tests in describe blocks`.
 - `/prompt-machine transition [name]` asserts completion and advances. A name may be omitted only for one outgoing edge.
 - `/prompt-machine state` displays machine, status, source, current instruction, and outgoing targets without triggering a turn or revealing future instructions.
 - Agents call `prompt_machine_transition` after completing the disclosed instruction. With one outgoing edge, no transition name is needed. With multiple edges, the agent chooses the transition that best matches the outcome of its work and passes that transition name.
@@ -35,7 +35,7 @@ Transition calls assert completion; they do not independently verify it. Use out
 
 Only global, flat `stateDiagram` and `stateDiagram-v2` workflows are accepted. Provide exactly one start edge, at least one terminal end edge, a non-empty explicit instruction for every ordinary state, valid targets, reachable states, and unique transition names. Every edge on a multi-edge branch must be named. Composite/concurrent states, groups, fork/join/choice nodes, click directives, and other non-flat structures are rejected.
 
-Instructions are untrusted user content and are delivered as user context, never as system-prompt text. The model receives only the current instruction and outgoing transition names; `/prompt-machine state` is user-only detail.
+Instructions and an optional invocation prompt are untrusted user content and are delivered in the initial user message, never as system-prompt text. The invocation prompt is not repeated after transitions. The model receives only the current instruction and outgoing transition names; `/prompt-machine state` is user-only detail.
 
 ## Development
 

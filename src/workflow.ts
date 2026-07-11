@@ -105,6 +105,12 @@ export const formatDisclosure = (record: WorkflowRecord): string => {
   ].join('\n');
 };
 
+export const formatInitialDisclosure = (record: WorkflowRecord, userPrompt?: string): string => {
+  const disclosure = formatDisclosure(record);
+  const prompt = userPrompt?.trim();
+  return prompt ? `User request:\n${prompt}\n\n${disclosure}` : disclosure;
+};
+
 export const formatState = (record: WorkflowRecord): string => {
   const lines = [
     `Machine: ${record.machine}`,

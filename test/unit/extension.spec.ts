@@ -1,5 +1,26 @@
 import { expect, it } from '@effect/vitest';
-import { makeTransitionReservation } from '../../extensions/prompt-machine.ts';
+import { makeTransitionReservation, parsePromptMachineCommand } from '../../extensions/prompt-machine.ts';
+
+it('parses machine prompts while preserving their content and reserved commands', () => {
+  expect(parsePromptMachineCommand('code-brain-planning')).toEqual({
+    action: 'start',
+    name: 'code-brain-planning',
+  });
+  expect(parsePromptMachineCommand('code-brain-planning Wrap tests in describe blocks')).toEqual({
+    action: 'start',
+    name: 'code-brain-planning',
+    prompt: 'Wrap tests in describe blocks',
+  });
+  expect(parsePromptMachineCommand('code-brain-planning  First line\n  second line')).toEqual({
+    action: 'start',
+    name: 'code-brain-planning',
+    prompt: 'First line\n  second line',
+  });
+  expect(parsePromptMachineCommand('state')).toEqual({ action: 'state' });
+  expect(parsePromptMachineCommand('transition approved')).toEqual({ action: 'transition', transition: 'approved' });
+  expect(parsePromptMachineCommand('state extra')).toEqual({ action: 'invalid' });
+  expect(parsePromptMachineCommand('transition two words')).toEqual({ action: 'invalid' });
+});
 
 it('reserves only the first transition in a tool batch and resets safely', () => {
   const reservation = makeTransitionReservation();

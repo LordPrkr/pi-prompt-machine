@@ -9,6 +9,7 @@ import {
   encodeWorkflowEntry,
   foldWorkflowEntries,
   formatDisclosure,
+  formatInitialDisclosure,
   formatState,
   type InvalidSessionState,
   type InvalidTransition,
@@ -29,6 +30,32 @@ interface TransitionDetails {
   readonly transitions?: ReadonlyArray<string>;
 }
 type ExpectedError = PromptMachineError | InvalidTransition | InvalidSessionState;
+
+export type PromptMachineCommand =
+  | { readonly action: 'start'; readonly name: string; readonly prompt?: string }
+  | { readonly action: 'state' }
+  | { readonly action: 'transition'; readonly transition?: string }
+  | { readonly action: 'invalid' };
+
+export const parsePromptMachineCommand = (raw: string): PromptMachineCommand => {
+  const input = raw.trim();
+  if (!input) {
+    return { action: 'invalid' };
+  }
+  const separator = input.search(/\s/);
+  const command = separator === -1 ? input : input.slice(0, separator);
+  const remainder = separator === -1 ? '' : input.slice(separator).trim();
+  if (command === 'state') {
+    return remainder ? { action: 'invalid' } : { action: 'state' };
+  }
+  if (command === 'transition') {
+    if (!remainder) {
+      return { action: 'transition' };
+    }
+    return /\s/.test(remainder) ? { action: 'invalid' } : { action: 'transition', transition: remainder };
+  }
+  return remainder ? { action: 'start', name: command, prompt: remainder } : { action: 'start', name: command };
+};
 
 export const makeTransitionReservation = () => {
   let reservedCallId: string | undefined;
@@ -154,7 +181,11 @@ export default function promptMachineExtension(pi: ExtensionAPI): void {
   pi.registerCommand('prompt-machine', {
     description: 'Start, advance, or inspect a progressive-disclosure prompt machine',
     getArgumentCompletions: (prefix) => {
-      const parts = prefix.trimStart().split(/\s+/);
+      const input = prefix.trimStart();
+      const parts = input.split(/\s+/);
+      if (parts[0] !== 'transition' && /\s/.test(input)) {
+        return null;
+      }
       const values =
         parts[0] === 'transition' && parts.length > 1 && current?.status === 'active'
           ? (current.snapshot.transitions[current.currentState] ?? []).flatMap((edge) =>
@@ -166,22 +197,30 @@ export default function promptMachineExtension(pi: ExtensionAPI): void {
       return matches.length === 0 ? null : matches;
     },
     handler: async (rawArgs, ctx) => {
-      const args = rawArgs.trim().split(/\s+/).filter(Boolean);
-      if (args[0] === 'state' && args.length === 1) {
+      const command = parsePromptMachineCommand(rawArgs);
+      if (command.action === 'state') {
         ctx.ui.notify(current === undefined ? 'No active prompt machine.' : formatState(current), 'info');
+        return;
+      }
+      if (command.action === 'invalid') {
+        await refresh();
+        ctx.ui.notify(
+          `Usage: /prompt-machine <name> [prompt] | transition [name] | state\nAvailable: ${discovered.join(', ') || '(none)'}`,
+          'error',
+        );
         return;
       }
       if (!ctx.isIdle()) {
         ctx.ui.notify('Prompt-machine changes require Pi to be idle.', 'error');
         return;
       }
-      if (args[0] === 'transition' && args.length <= 2) {
+      if (command.action === 'transition') {
         if (current === undefined) {
           ctx.ui.notify('No active prompt machine.', 'error');
           return;
         }
         const result = await runtime.runPromise(
-          transitionWorkflow(current, args[1]).pipe(
+          transitionWorkflow(current, command.transition).pipe(
             Effect.match({
               onFailure: (error) => ({ ok: false as const, error }),
               onSuccess: (value) => ({ ok: true as const, value }),
@@ -198,33 +237,25 @@ export default function promptMachineExtension(pi: ExtensionAPI): void {
         pi.sendUserMessage(formatDisclosure(current));
         return;
       }
-      if (args.length === 1) {
-        const result = await runtime.runPromise(
-          Effect.gen(function* () {
-            const machine = yield* loadPromptMachine(agentDir, args[0] ?? '');
-            return yield* startWorkflow(machine);
-          }).pipe(
-            Effect.match({
-              onFailure: (error) => ({ ok: false as const, error }),
-              onSuccess: (value) => ({ ok: true as const, value }),
-            }),
-          ),
-        );
-        if (!result.ok) {
-          ctx.ui.notify(errorMessage(result.error), 'error');
-          return;
-        }
-        current = result.value;
-        await persistStart(current);
-        updateStatus(ctx);
-        pi.sendUserMessage(formatDisclosure(current));
+      const result = await runtime.runPromise(
+        Effect.gen(function* () {
+          const machine = yield* loadPromptMachine(agentDir, command.name);
+          return yield* startWorkflow(machine);
+        }).pipe(
+          Effect.match({
+            onFailure: (error) => ({ ok: false as const, error }),
+            onSuccess: (value) => ({ ok: true as const, value }),
+          }),
+        ),
+      );
+      if (!result.ok) {
+        ctx.ui.notify(errorMessage(result.error), 'error');
         return;
       }
-      await refresh();
-      ctx.ui.notify(
-        `Usage: /prompt-machine <name> | transition [name] | state\nAvailable: ${discovered.join(', ') || '(none)'}`,
-        'error',
-      );
+      current = result.value;
+      await persistStart(current);
+      updateStatus(ctx);
+      pi.sendUserMessage(formatInitialDisclosure(current, command.prompt));
     },
   });
 

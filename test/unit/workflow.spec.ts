@@ -5,6 +5,7 @@ import {
   checkpointEntry,
   foldWorkflowEntries,
   formatDisclosure,
+  formatInitialDisclosure,
   formatState,
   startEntry,
   startWorkflow,
@@ -36,6 +37,11 @@ it.effect('starts, selects a named branch, and completes while disclosing only t
     expect(formatDisclosure(started)).toContain(
       'choose the transition that best matches the outcome of your work, then call prompt_machine_transition with that transition name',
     );
+    const initial = formatInitialDisclosure(started, 'Review this pull request carefully.');
+    expect(initial).toContain('User request:\nReview this pull request carefully.');
+    expect(initial).toContain('Inspect the change');
+    expect(initial).not.toContain('Approve it');
+    expect(formatInitialDisclosure(started)).toBe(formatDisclosure(started));
     const approved = yield* transitionWorkflow(started, 'approve');
     expect(formatDisclosure(approved)).toContain('After finishing this instruction, call prompt_machine_transition.');
     expect(formatDisclosure(approved)).not.toContain('choose the transition');
