@@ -1,51 +1,150 @@
 # Pi Prompt Machine
 
-A Pi package for progressive-disclosure coding workflows described by flat Mermaid state diagrams. It uses Effect 4 and Node platform services at runtime; Bun drives development.
+Pi Prompt Machine turns Mermaid state diagrams into progressive coding workflows. The agent sees one state at a time, completes its instruction, and follows an outgoing transition before receiving the next instruction.
 
-## Setup
+This keeps long workflows out of the prompt until each step becomes relevant.
+
+## Install
+
+From a local checkout:
 
 ```sh
 bun install
+pi install "$(pwd)"
+```
+
+To try the extension without installing it:
+
+```sh
 pi -e .
 ```
 
-Create machines as direct files in `~/.pi/agent/prompt-machines/` (or the directory selected by `PI_CODING_AGENT_DIR`):
+## Create a prompt machine
+
+Store Mermaid files in `~/.pi/agent/prompt-machines/`:
+
+```text
+~/.pi/agent/prompt-machines/
+├── code-brain-planning.mmd
+└── fix-and-push.mmd
+```
+
+The filename becomes the machine name. Names may contain letters, numbers, `_`, and `-`. The names `state` and `transition` are reserved.
+
+A small machine looks like this:
 
 ```mermaid
 stateDiagram-v2
   [*] --> inspect
   inspect: Inspect the repository and identify the root cause.
-  inspect --> fix: ready
+  inspect --> fix: cause-found
   fix: Implement the smallest root-cause fix.
   fix --> [*]
 ```
 
-Names may contain letters, numbers, `_`, and `-`; `state` and `transition` are reserved. Nested files, symlinks, and invalid filenames are ignored.
+## Run a prompt machine
 
-## Commands and tool
+Start a machine by name:
 
-- `/prompt-machine <name> [prompt]` starts or replaces a workflow and sends its first instruction to the agent. Optional text after the name is included verbatim as the user request in that initial message, for example: `/prompt-machine code-brain-planning Wrap the repository tests in describe blocks`.
-- `/prompt-machine transition [name]` asserts completion and advances. A name may be omitted only for one outgoing edge.
-- `/prompt-machine state` displays machine, status, source, current instruction, and outgoing targets without triggering a turn or revealing future instructions.
-- Agents call `prompt_machine_transition` after completing the disclosed instruction. With one outgoing edge, no transition name is needed. With multiple edges, the agent chooses the transition that best matches the outcome of its work and passes that transition name.
-
-Transition calls assert completion; they do not independently verify it. Use outcome-oriented transition names so the agent can select the appropriate branch. Workflow starts contain an immutable parsed snapshot, while subsequent checkpoints are lightweight. Pi custom entries restore the correct state when resuming or navigating branches with `/tree`.
-
-## Authoring rules
-
-Only global, flat `stateDiagram` and `stateDiagram-v2` workflows are accepted. Provide exactly one start edge, at least one terminal end edge, a non-empty explicit instruction for every ordinary state, valid targets, reachable states, and unique transition names. Every edge on a multi-edge branch must be named. Composite/concurrent states, groups, fork/join/choice nodes, click directives, and other non-flat structures are rejected.
-
-Instructions and an optional invocation prompt are untrusted user content and are delivered in the initial user message, never as system-prompt text. The invocation prompt is not repeated after transitions. The model receives only the current instruction and outgoing transition names; `/prompt-machine state` is user-only detail.
-
-## Development
-
-```sh
-bun run test:unit
-bun run test:integration
-bun run test:coverage
-bun run format
-bun run lint
-bun run typecheck
+```text
+/prompt-machine fix-and-push
 ```
 
-The Mermaid adapter pins `mermaid@11.16.0` and `happy-dom@20.10.6`. It temporarily installs browser globals with an Effect-managed acquire/use/release bracket, then decodes the internal `mermaidAPI.getDiagramFromText().db.getData()` result through Effect Schema. That API is deprecated/internal, so the real integration test protects the boundary and the dependency versions must remain pinned.
+Add a task prompt after the name to give the workflow a concrete objective:
+
+```text
+/prompt-machine code-brain-planning Wrap the repository tests in appropriate describe blocks
+```
+
+The task prompt appears once in the initial user message. Each later message contains only the current state instruction and its outgoing transitions.
+
+Inspect the current state without advancing it:
+
+```text
+/prompt-machine state
+```
+
+Advance manually when needed:
+
+```text
+/prompt-machine transition
+/prompt-machine transition cause-found
+```
+
+The agent normally advances itself through `prompt_machine_transition`:
+
+- With one outgoing edge, it calls the tool without a transition name.
+- With multiple edges, it chooses the transition that best matches the outcome of its work.
+
+Use outcome-oriented transition names. Names such as `tests-passed`, `changes-needed`, and `user-approved` give the agent a meaningful choice; phase names such as `next` do not.
+
+Transitions assert that a step is complete. They do not independently verify tests, commits, deployments, or other state instructions.
+
+## Example: approval-first planning
+
+This machine gathers context, handles optional domain modeling, prepares and reviews a plan, waits for approval, implements it, reviews the result, and commits the verified change.
+
+```mermaid
+stateDiagram-v2
+  [*] --> build_context
+
+  state "Resolve the Code Brain project folder and next numbered plan directory. Launch asynchronous scout and context-builder subagents with distinct scopes; add a researcher only when external evidence materially affects the plan. Persist useful findings in notes.md and create a canvas when flow, ownership, state, or boundaries matter. Do not delegate artifact persistence or orchestration." as build_context
+  build_context --> capture_domain: domain-modeling-needed
+  build_context --> challenge_direction: context-ready-no-domain-changes
+
+  state "Invoke domain-modeling. Challenge conflicting or fuzzy language, cross-check claims against source code, and persist resolved terms under domain/. Create and link an ADR only for a hard-to-reverse, surprising decision with real alternatives." as capture_domain
+  capture_domain --> challenge_direction: domain-captured
+
+  state "Decide whether assumptions, architecture, scope, or trajectory need a second opinion. When they do, run a forked oracle as a read-only adviser and explicitly accept or reject its recommendations before planning; otherwise record that no meaningful directional decision requires an oracle." as challenge_direction
+  challenge_direction --> draft_plan
+
+  state "Give the gathered context and approved direction to a planner that must not edit code. Persist and refine plan.md as a standalone fresh-worker handoff containing the goal, context, exact files, TDD-first steps, important end-state snippets, verification commands, risks, blocking user questions, and links to every sibling artifact and relevant ADR. Always create and link call-stack.diagram.md; create proposed.canvas and current.canvas only when useful. Do not leave conditional implementation forks in the plan." as draft_plan
+  draft_plan --> review_plan
+
+  state "Adversarially review the plan against the request and evidence with a fresh read-only reviewer when risk is meaningful; otherwise self-review. Incorporate accepted feedback without revision-history residue and ensure the plan is complete, concrete, linked, TDD-first, and executable by a worker with no prior context." as review_plan
+  review_plan --> approval_gate: plan-ready
+  review_plan --> draft_plan: changes-needed
+
+  state "Present the standalone plan and wait for the user. Do not edit implementation files before explicit approval. If the user requests changes, update the plan so it remains self-contained and review it again." as approval_gate
+  approval_gate --> implement: user-approved
+  approval_gate --> draft_plan: revision-requested
+  approval_gate --> [*]: cancelled
+
+  state "Launch one fresh-context worker asynchronously with the approved plan, explicit acceptance criteria, verification commands, and a required handoff covering changed files, command exit codes, validation evidence, residual risks, and decisions needing approval. Ensure the worker implements the approved plan rather than inventing another design." as implement
+  implement --> review_implementation
+
+  state "Launch fresh read-only reviewers with distinct correctness, validation, and simplicity angles. Synthesize their findings, inspect the final diff, and confirm focused verification. Choose the transition matching whether approved fixes remain." as review_implementation
+  review_implementation --> apply_fixes: fixes-needed
+  review_implementation --> commit: implementation-approved
+
+  state "Launch one forked worker to apply only the accepted fixes, run focused verification, and return the implementation for another read-only review." as apply_fixes
+  apply_fixes --> review_implementation
+
+  state "After all verification passes, generate a Conventional Commit message, commit the implementation and related Code Brain artifacts, and confirm git status contains no uncommitted work from the change." as commit
+  commit --> [*]
+```
+
+Save it as `~/.pi/agent/prompt-machines/code-brain-planning.mmd`, then run:
+
+```text
+/prompt-machine code-brain-planning <your task>
+```
+
+## Authoring requirements
+
+Prompt Machine accepts flat `stateDiagram` and `stateDiagram-v2` workflows with:
+
+- exactly one start edge;
+- at least one reachable end edge;
+- an explicit instruction for every state;
+- reachable states with valid targets;
+- unique transition names per state;
+- names on every edge when a state has multiple outcomes.
+
+Composite and concurrent states, groups, fork/join/choice nodes, click directives, nested files, and symlinked machine files are not supported.
+
+## Sessions and branches
+
+Prompt Machine stores an immutable machine snapshot when a workflow starts. Editing the source file does not alter a running workflow.
+
+State checkpoints follow Pi's session tree. Returning to an earlier point with `/tree` restores the machine state from that branch without leaking instructions from an abandoned branch.
