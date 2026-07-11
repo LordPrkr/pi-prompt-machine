@@ -1,6 +1,4 @@
-import { constants } from 'node:fs';
-import { open } from 'node:fs/promises';
-import { Effect, FileSystem, Path, Schema } from 'effect';
+import { Effect, FileSystem, Option, Path, Schema } from 'effect';
 import { Window } from 'happy-dom';
 
 const MAX_SOURCE_BYTES = 256 * 1024;
@@ -239,10 +237,6 @@ export const listPromptMachines = Effect.fn('listPromptMachines')(function* (age
       continue;
     }
     const file = path.join(directory, entry);
-    const isSymlink = yield* fs.readLink(file).pipe(Effect.match({ onFailure: () => false, onSuccess: () => true }));
-    if (isSymlink) {
-      continue;
-    }
     const info = yield* fs.stat(file).pipe(Effect.orElseSucceed(() => undefined));
     if (info?.type === 'File') {
       names.push(name);
@@ -252,42 +246,32 @@ export const listPromptMachines = Effect.fn('listPromptMachines')(function* (age
 });
 
 export const readPromptMachineSource = Effect.fn('readPromptMachineSource')(function* (source: string) {
-  return yield* Effect.tryPromise({
-    try: async () => {
-      const file = await open(source, constants.O_RDONLY | constants.O_NOFOLLOW);
-      try {
-        const info = await file.stat();
-        if (!info.isFile()) {
-          throw new Error('not a regular file');
-        }
-        if (info.size > MAX_SOURCE_BYTES) {
-          throw new Error('maximum 256 KiB exceeded');
-        }
-        const bytes = new Uint8Array(MAX_SOURCE_BYTES + 1);
-        let offset = 0;
-        while (offset < bytes.byteLength) {
-          const result = await file.read(bytes, offset, bytes.byteLength - offset, offset);
-          if (result.bytesRead === 0) {
-            break;
-          }
-          offset += result.bytesRead;
-        }
-        if (offset > MAX_SOURCE_BYTES) {
-          throw new Error('maximum 256 KiB exceeded');
-        }
-        return new TextDecoder().decode(bytes.subarray(0, offset));
-      } finally {
-        await file.close();
-      }
-    },
-    catch: (cause) =>
-      new PromptMachineLoadError({
-        operation:
-          cause instanceof Error && cause.message.includes('maximum 256 KiB') ? 'read (maximum 256 KiB)' : 'read',
-        path: source,
-        cause,
-      }),
-  });
+  const fs = yield* FileSystem.FileSystem;
+  return yield* Effect.gen(function* () {
+    const file = yield* fs.open(source, { flag: 'r' });
+    const info = yield* file.stat;
+    if (info.type !== 'File') {
+      return yield* Effect.fail('not a regular file');
+    }
+    const bytes = Option.getOrElse(
+      yield* file.readAlloc(FileSystem.Size(MAX_SOURCE_BYTES + 1)),
+      () => new Uint8Array(),
+    );
+    if (bytes.byteLength > MAX_SOURCE_BYTES) {
+      return yield* Effect.fail('maximum 256 KiB exceeded');
+    }
+    return new TextDecoder().decode(bytes);
+  }).pipe(
+    Effect.scoped,
+    Effect.mapError(
+      (cause) =>
+        new PromptMachineLoadError({
+          operation: String(cause).includes('maximum 256 KiB') ? 'read (maximum 256 KiB)' : 'read',
+          path: source,
+          cause,
+        }),
+    ),
+  );
 });
 
 export const loadPromptMachine = Effect.fn('loadPromptMachine')(function* (agentDir: string, name: string) {

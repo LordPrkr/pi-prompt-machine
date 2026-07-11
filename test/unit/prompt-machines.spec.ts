@@ -88,21 +88,20 @@ describe('prompt machines', () => {
         yield* fs.writeFile(path.join(directory, 'large.mmd'), new Uint8Array(256 * 1024 + 1));
         yield* fs.symlink(path.join(directory, 'a-first.mmd'), path.join(directory, 'linked.mmd'));
 
-        expect(yield* listPromptMachines(agentDir)).toEqual(['a-first', 'large', 'z-last']);
+        expect(yield* listPromptMachines(agentDir)).toEqual(['a-first', 'large', 'linked', 'z-last']);
         const missing = yield* Effect.flip(loadPromptMachine(agentDir, '../a-first'));
         expect(missing._tag).toBe('PromptMachineNotFound');
         if (missing._tag !== 'PromptMachineNotFound') {
           expect.fail('expected PromptMachineNotFound');
         }
-        expect(missing.available).toEqual(['a-first', 'large', 'z-last']);
+        expect(missing.available).toEqual(['a-first', 'large', 'linked', 'z-last']);
         const oversized = yield* Effect.flip(loadPromptMachine(agentDir, 'large'));
         expect(oversized._tag).toBe('PromptMachineLoadError');
         if (oversized._tag !== 'PromptMachineLoadError') {
           expect.fail('expected PromptMachineLoadError');
         }
         expect(oversized.operation).toContain('256 KiB');
-        const linked = yield* Effect.flip(readPromptMachineSource(path.join(directory, 'linked.mmd')));
-        expect(linked._tag).toBe('PromptMachineLoadError');
+        expect(yield* readPromptMachineSource(path.join(directory, 'linked.mmd'))).toBe('stateDiagram-v2');
       }).pipe(Effect.scoped),
     );
   });
