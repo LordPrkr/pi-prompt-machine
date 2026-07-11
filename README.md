@@ -1,4 +1,4 @@
-# Pi Prompt Machine
+# Pi Prompt Machine ⚙️
 
 Pi Prompt Machine turns Mermaid state diagrams into progressive coding workflows. The agent sees one state at a time, completes its instruction, and follows an outgoing transition before receiving the next instruction.
 
