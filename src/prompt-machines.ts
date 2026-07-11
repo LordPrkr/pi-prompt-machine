@@ -212,7 +212,9 @@ const loadMermaid = Effect.acquireUseRelease(
   Effect.runSync,
 );
 
-export const listPromptMachines = Effect.fn('listPromptMachines')(function* (agentDir: string) {
+type PromptMachineResource = { readonly name: string; readonly source: string };
+
+const resolvePromptMachines = Effect.fn('resolvePromptMachines')(function* (agentDir: string) {
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
   const directory = path.join(agentDir, 'prompt-machines');
@@ -227,7 +229,7 @@ export const listPromptMachines = Effect.fn('listPromptMachines')(function* (age
     .pipe(
       Effect.mapError((cause) => new PromptMachineLoadError({ operation: 'read directory', path: directory, cause })),
     );
-  const names: Array<string> = [];
+  const resources = new Map<string, PromptMachineResource>();
   for (const entry of entries) {
     if (!entry.endsWith('.mmd')) {
       continue;
@@ -236,13 +238,37 @@ export const listPromptMachines = Effect.fn('listPromptMachines')(function* (age
     if (!MACHINE_NAME.test(name) || RESERVED.has(name)) {
       continue;
     }
-    const file = path.join(directory, entry);
-    const info = yield* fs.stat(file).pipe(Effect.orElseSucceed(() => undefined));
+    const source = path.join(directory, entry);
+    const info = yield* fs.stat(source).pipe(Effect.orElseSucceed(() => undefined));
     if (info?.type === 'File') {
-      names.push(name);
+      resources.set(name, { name, source });
     }
   }
-  return names.sort();
+  for (const name of entries) {
+    if (!MACHINE_NAME.test(name) || RESERVED.has(name) || resources.has(name)) {
+      continue;
+    }
+    const resourceDirectory = path.join(directory, name);
+    const directoryInfo = yield* fs.stat(resourceDirectory).pipe(Effect.orElseSucceed(() => undefined));
+    if (directoryInfo?.type !== 'Directory') {
+      continue;
+    }
+    const source = path.join(resourceDirectory, 'MACHINE.mmd');
+    const sourceInfo = yield* fs.stat(source).pipe(Effect.orElseSucceed(() => undefined));
+    if (sourceInfo?.type === 'File') {
+      resources.set(name, { name, source });
+    }
+  }
+  return [...resources.values()].sort((left, right) => {
+    if (left.name === right.name) {
+      return 0;
+    }
+    return left.name < right.name ? -1 : 1;
+  });
+});
+
+export const listPromptMachines = Effect.fn('listPromptMachines')(function* (agentDir: string) {
+  return (yield* resolvePromptMachines(agentDir)).map(({ name }) => name);
 });
 
 export const readPromptMachineSource = Effect.fn('readPromptMachineSource')(function* (source: string) {
@@ -275,12 +301,15 @@ export const readPromptMachineSource = Effect.fn('readPromptMachineSource')(func
 });
 
 export const loadPromptMachine = Effect.fn('loadPromptMachine')(function* (agentDir: string, name: string) {
-  const path = yield* Path.Path;
-  const available = yield* listPromptMachines(agentDir);
-  if (!available.includes(name)) {
-    return yield* new PromptMachineNotFound({ name, available });
+  const resources = yield* resolvePromptMachines(agentDir);
+  const resource = resources.find((candidate) => candidate.name === name);
+  if (resource === undefined) {
+    return yield* new PromptMachineNotFound({
+      name,
+      available: resources.map((candidate) => candidate.name),
+    });
   }
-  const source = path.join(agentDir, 'prompt-machines', `${name}.mmd`);
+  const { source } = resource;
   const text = yield* readPromptMachineSource(source);
   const mermaid = yield* loadMermaid.pipe(Effect.mapError((cause) => new PromptMachineParseError({ name, cause })));
   const raw = yield* Effect.tryPromise({

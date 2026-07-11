@@ -11,6 +11,12 @@ import {
   readPromptMachineSource,
 } from '../../src/prompt-machines.ts';
 
+const machineSource = (instruction: string) => `stateDiagram-v2
+  [*] --> run
+  run: ${instruction}
+  run --> [*]
+`;
+
 const graph = {
   nodes: [
     { id: 'start', label: 'start', shape: 'stateStart', isGroup: false },
@@ -72,15 +78,23 @@ describe('prompt machines', () => {
   });
 
   layer(NodeServices.layer)('prompt-machine resources', (it) => {
-    it.effect('discovers sorted direct regular resources and enforces exact lookup and the size cap', () =>
+    it.effect('resolves flat and directory resources with flat precedence and direct-only discovery', () =>
       Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem;
         const path = yield* Path.Path;
         const agentDir = yield* fs.makeTempDirectoryScoped({ prefix: 'prompt-machine-unit-' });
         const directory = path.join(agentDir, 'prompt-machines');
         yield* fs.makeDirectory(path.join(directory, 'nested'), { recursive: true });
+        yield* fs.makeDirectory(path.join(directory, 'bundled', 'templates'), { recursive: true });
+        yield* fs.makeDirectory(path.join(directory, 'a-first'), { recursive: true });
+        yield* fs.makeDirectory(path.join(directory, 'invalid', 'MACHINE.mmd'), { recursive: true });
         yield* fs.writeFileString(path.join(directory, 'z-last.mmd'), 'stateDiagram-v2');
-        yield* fs.writeFileString(path.join(directory, 'a-first.mmd'), 'stateDiagram-v2');
+        yield* fs.writeFileString(path.join(directory, 'B.mmd'), 'stateDiagram-v2');
+        yield* fs.writeFileString(path.join(directory, 'a_b.mmd'), 'stateDiagram-v2');
+        yield* fs.writeFileString(path.join(directory, 'a-first.mmd'), machineSource('Use the flat machine.'));
+        yield* fs.writeFileString(path.join(directory, 'a-first', 'MACHINE.mmd'), machineSource('Wrong source.'));
+        yield* fs.writeFileString(path.join(directory, 'bundled', 'MACHINE.mmd'), machineSource('Use the bundle.'));
+        yield* fs.writeFileString(path.join(directory, 'bundled', 'templates', 'supporting.mmd'), 'support only');
         yield* fs.writeFileString(path.join(directory, 'state.mmd'), 'stateDiagram-v2');
         yield* fs.writeFileString(path.join(directory, 'bad name.mmd'), 'stateDiagram-v2');
         yield* fs.writeFileString(path.join(directory, 'other.txt'), 'ignored');
@@ -88,20 +102,37 @@ describe('prompt machines', () => {
         yield* fs.writeFile(path.join(directory, 'large.mmd'), new Uint8Array(256 * 1024 + 1));
         yield* fs.symlink(path.join(directory, 'a-first.mmd'), path.join(directory, 'linked.mmd'));
 
-        expect(yield* listPromptMachines(agentDir)).toEqual(['a-first', 'large', 'linked', 'z-last']);
+        expect(yield* listPromptMachines(agentDir)).toEqual([
+          'B',
+          'a-first',
+          'a_b',
+          'bundled',
+          'large',
+          'linked',
+          'z-last',
+        ]);
+        const flat = yield* loadPromptMachine(agentDir, 'a-first');
+        expect(flat.source).toBe(path.join(directory, 'a-first.mmd'));
+        expect(flat.snapshot.instructions.run).toBe('Use the flat machine.');
+        const bundled = yield* loadPromptMachine(agentDir, 'bundled');
+        expect(bundled.source).toBe(path.join(directory, 'bundled', 'MACHINE.mmd'));
+        expect(bundled.snapshot.instructions.run).toBe('Use the bundle.');
+
         const missing = yield* Effect.flip(loadPromptMachine(agentDir, '../a-first'));
         expect(missing._tag).toBe('PromptMachineNotFound');
         if (missing._tag !== 'PromptMachineNotFound') {
           expect.fail('expected PromptMachineNotFound');
         }
-        expect(missing.available).toEqual(['a-first', 'large', 'linked', 'z-last']);
+        expect(missing.available).toEqual(['B', 'a-first', 'a_b', 'bundled', 'large', 'linked', 'z-last']);
         const oversized = yield* Effect.flip(loadPromptMachine(agentDir, 'large'));
         expect(oversized._tag).toBe('PromptMachineLoadError');
         if (oversized._tag !== 'PromptMachineLoadError') {
           expect.fail('expected PromptMachineLoadError');
         }
         expect(oversized.operation).toContain('256 KiB');
-        expect(yield* readPromptMachineSource(path.join(directory, 'linked.mmd'))).toBe('stateDiagram-v2');
+        expect(yield* readPromptMachineSource(path.join(directory, 'linked.mmd'))).toBe(
+          machineSource('Use the flat machine.'),
+        );
       }).pipe(Effect.scoped),
     );
   });

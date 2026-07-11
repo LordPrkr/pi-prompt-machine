@@ -21,11 +21,16 @@ layer(NodeServices.layer)('prompt machine integration', (it) => {
       const path = yield* Path.Path;
       const agentDir = yield* fs.makeTempDirectoryScoped({ prefix: 'prompt-machine-planning-' });
       const machineDir = path.join(agentDir, 'prompt-machines');
-      yield* fs.makeDirectory(machineDir);
+      const resourceDir = path.join(machineDir, 'code-brain-planning');
+      yield* fs.makeDirectory(path.join(resourceDir, 'references'), { recursive: true });
       const fixture = yield* fs.readFileString(path.resolve('test/fixtures/code-brain-planning.mmd'));
-      yield* fs.writeFileString(path.join(machineDir, 'code-brain-planning.mmd'), fixture);
+      const source = path.join(resourceDir, 'MACHINE.mmd');
+      yield* fs.writeFileString(source, fixture);
+      yield* fs.writeFileString(path.join(resourceDir, 'references', 'review.md'), 'Supporting material');
 
+      expect(yield* listPromptMachines(agentDir)).toEqual(['code-brain-planning']);
       const machine = yield* loadPromptMachine(agentDir, 'code-brain-planning');
+      expect(machine.source).toBe(source);
       expect(machine.snapshot.initialState).toBe('build_context');
       expect(machine.snapshot.transitions.build_context?.map((transition) => transition.name)).toEqual([
         'domain-modeling-needed',

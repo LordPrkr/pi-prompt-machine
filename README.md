@@ -30,15 +30,20 @@ It writes the generated Mermaid file to `~/.pi/agent/prompt-machines/`.
 
 ## Create a prompt machine
 
-Store Mermaid files in `~/.pi/agent/prompt-machines/`:
+Store each machine as either a Mermaid file or a directory with a `MACHINE.mmd` entrypoint:
 
 ```text
 ~/.pi/agent/prompt-machines/
 ├── code-brain-planning.mmd
-└── fix-and-push.mmd
+└── fix-and-push/
+    ├── MACHINE.mmd
+    └── templates/
+        └── report.md
 ```
 
-The filename becomes the machine name. Names may contain letters, numbers, `_`, and `-`. The names `state` and `transition` are reserved.
+The filename or directory name becomes the machine name. Names may contain letters, numbers, `_`, and `-`. The names `state` and `transition` are reserved. If both layouts define the same name, the flat `.mmd` file wins.
+
+Directory machines may contain nested supporting files, such as references or output templates, for their prompts to reference. These files are not loaded automatically or discovered as separate machines; only `MACHINE.mmd` is the entrypoint.
 
 A small machine looks like this:
 
@@ -150,7 +155,7 @@ Prompt Machine accepts flat `stateDiagram` and `stateDiagram-v2` workflows with:
 - unique transition names per state;
 - names on every edge when a state has multiple outcomes.
 
-Composite and concurrent states, groups, fork/join/choice nodes, click directives, nested files, and symlinked machine files are not supported.
+Composite and concurrent states, groups, fork/join/choice nodes, click directives, and symlinked machine files are not supported.
 
 ## Sessions and branches
 
