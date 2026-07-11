@@ -15,6 +15,26 @@ import {
 } from '../../src/workflow.ts';
 
 layer(NodeServices.layer)('prompt machine integration', (it) => {
+  it.effect('parses the branching code-brain planning fixture', () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const path = yield* Path.Path;
+      const agentDir = yield* fs.makeTempDirectoryScoped({ prefix: 'prompt-machine-planning-' });
+      const machineDir = path.join(agentDir, 'prompt-machines');
+      yield* fs.makeDirectory(machineDir);
+      const fixture = yield* fs.readFileString(path.resolve('test/fixtures/code-brain-planning.mmd'));
+      yield* fs.writeFileString(path.join(machineDir, 'code-brain-planning.mmd'), fixture);
+
+      const machine = yield* loadPromptMachine(agentDir, 'code-brain-planning');
+      expect(machine.snapshot.initialState).toBe('build_context');
+      expect(machine.snapshot.transitions.build_context?.map((transition) => transition.name)).toEqual([
+        'domain-modeling-needed',
+        'context-ready-no-domain-changes',
+      ]);
+      expect(Object.keys(machine.snapshot.instructions)).toHaveLength(10);
+    }).pipe(Effect.scoped),
+  );
+
   it.effect('discovers, parses, restores globals, progresses, and restores persisted state', () =>
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
