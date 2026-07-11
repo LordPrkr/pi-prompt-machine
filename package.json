@@ -18,12 +18,16 @@
   ],
   "files": [
     "extensions",
+    "skills",
     "src",
     "README.md"
   ],
   "pi": {
     "extensions": [
       "./extensions"
+    ],
+    "skills": [
+      "./skills"
     ]
   },
   "dependencies": {
