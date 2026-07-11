@@ -1,5 +1,8 @@
 # Pi Prompt Machine ⚙️
 
+[![npm version](https://img.shields.io/npm/v/pi-prompt-machine.svg)](https://www.npmjs.com/package/pi-prompt-machine)
+[![Pi package](https://img.shields.io/badge/Pi-package-f97316.svg)](https://pi.dev/packages/pi-prompt-machine)
+
 Pi Prompt Machine turns Mermaid state diagrams into progressive coding workflows. The agent sees one state at a time, completes its instruction, and follows an outgoing transition before receiving the next instruction.
 
 This keeps long workflows out of the prompt until each step becomes relevant.
