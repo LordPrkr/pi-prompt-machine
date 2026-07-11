@@ -71,10 +71,10 @@ Advance manually when needed:
 /prompt-machine transition cause-found
 ```
 
-The agent normally advances itself through `prompt_machine_transition`:
+The agent must advance through `prompt_machine_transition` when the current instruction is complete:
 
 - With one outgoing edge, it calls the tool without a transition name.
-- With multiple edges, it chooses the transition that best matches the outcome of its work.
+- With multiple edges, it must choose the transition that matches the outcome of its work and pass that transition name. Omitting the name is rejected.
 
 Use outcome-oriented transition names. Names such as `tests-passed`, `changes-needed`, and `user-approved` give the agent a meaningful choice; phase names such as `next` do not.
 

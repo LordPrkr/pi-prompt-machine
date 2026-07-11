@@ -35,7 +35,7 @@ it.effect('starts, selects a named branch, and completes while disclosing only t
     expect(formatDisclosure(started)).toContain('Inspect the change');
     expect(formatDisclosure(started)).not.toContain('Approve it');
     expect(formatDisclosure(started)).toContain(
-      'choose the transition that best matches the outcome of your work, then call prompt_machine_transition with that transition name',
+      "You must call prompt_machine_transition with the appropriate transition name as soon as this instruction's completion criteria are met.",
     );
     const initial = formatInitialDisclosure(started, 'Review this pull request carefully.');
     expect(initial).toContain('User request:\nReview this pull request carefully.');
@@ -43,7 +43,9 @@ it.effect('starts, selects a named branch, and completes while disclosing only t
     expect(initial).not.toContain('Approve it');
     expect(formatInitialDisclosure(started)).toBe(formatDisclosure(started));
     const approved = yield* transitionWorkflow(started, 'approve');
-    expect(formatDisclosure(approved)).toContain('After finishing this instruction, call prompt_machine_transition.');
+    expect(formatDisclosure(approved)).toContain(
+      "You must call prompt_machine_transition as soon as this instruction's completion criteria are met.",
+    );
     expect(formatDisclosure(approved)).not.toContain('choose the transition');
     expect(formatState(approved)).toContain('Approve it');
     expect(formatState(approved)).not.toContain('Revise it');

@@ -95,8 +95,8 @@ export const formatDisclosure = (record: WorkflowRecord): string => {
   const choices = outgoing.map((edge) => edge.name ?? '(default)').join(', ');
   const transitionGuidance =
     outgoing.length === 1
-      ? 'After finishing this instruction, call prompt_machine_transition.'
-      : 'After finishing this instruction, choose the transition that best matches the outcome of your work, then call prompt_machine_transition with that transition name.';
+      ? "You must call prompt_machine_transition as soon as this instruction's completion criteria are met."
+      : "You must call prompt_machine_transition with the appropriate transition name as soon as this instruction's completion criteria are met. Choose the transition that matches the outcome of your work.";
   return [
     `Current prompt-machine instruction (${record.machine}/${record.currentState}):`,
     instruction,

@@ -263,8 +263,10 @@ export default function promptMachineExtension(pi: ExtensionAPI): void {
     name: 'prompt_machine_transition',
     label: 'Prompt machine transition',
     description: 'Assert the current prompt-machine instruction is complete and advance to an outgoing transition.',
-    promptSnippet: 'Advance the active prompt machine after completing its current instruction.',
-    promptGuidelines: ['Call prompt_machine_transition only after completing the current prompt-machine instruction.'],
+    promptSnippet: 'Advance the active prompt machine when its current instruction is complete.',
+    promptGuidelines: [
+      'You must call prompt_machine_transition when the current prompt-machine instruction is complete; when several transitions are available, pass the transition name that matches the outcome of the work.',
+    ],
     parameters: TransitionParams,
     execute: async (_toolCallId, params, signal, _onUpdate, ctx) => {
       if (current === undefined) {
@@ -283,10 +285,7 @@ export default function promptMachineExtension(pi: ExtensionAPI): void {
         { signal },
       );
       if (!result.ok) {
-        return {
-          content: [{ type: 'text' as const, text: errorMessage(result.error) }],
-          details: { status: 'error' as const },
-        };
+        throw new Error(errorMessage(result.error));
       }
       current = result.value;
       await persistCheckpoint(current);
