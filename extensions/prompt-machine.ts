@@ -1,4 +1,4 @@
-import { NodeServices } from '@effect/platform-node';
+import * as NodeServices from '@effect/platform-node/NodeServices';
 import type { ExtensionAPI, ExtensionContext } from '@earendil-works/pi-coding-agent';
 import { getAgentDir } from '@earendil-works/pi-coding-agent';
 import { Effect, ManagedRuntime } from 'effect';
