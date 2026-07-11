@@ -19,6 +19,15 @@ To try the extension without installing it:
 pi -e npm:pi-prompt-machine
 ```
 
+The package also includes the `skill-to-prompt-machine` skill. Ask Pi to turn an
+existing skill into a prompt machine, or invoke it directly:
+
+```text
+/skill:skill-to-prompt-machine <skill name or path>
+```
+
+It writes the generated Mermaid file to `~/.pi/agent/prompt-machines/`.
+
 ## Create a prompt machine
 
 Store Mermaid files in `~/.pi/agent/prompt-machines/`:
